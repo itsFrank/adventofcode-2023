@@ -2,7 +2,7 @@ use std::fs;
 
 #[macro_export]
 macro_rules! resource_path {
-    ($res_path:literal) => {{
+    ($res_path:expr) => {{
         use std::path::Path;
         let path = Path::new(env!("CARGO_MANIFEST_DIR"));
         match path.join("resources").join($res_path).to_str() {
