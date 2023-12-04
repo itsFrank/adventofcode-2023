@@ -20,6 +20,23 @@ pub fn read_file(file_path: &str) -> Result<String, String> {
     };
 }
 
+pub fn get_resource_lines(res_path: &str) -> Vec<String> {
+    let mut lines: Vec<String> = read_file(&res_path)
+        .unwrap()
+        .split("\n")
+        .map(|s| s.to_string())
+        .collect();
+
+    // remove last line if empty
+    if let Some(line) = lines.last() {
+        if line.is_empty() {
+            lines.pop();
+        }
+    }
+
+    return lines;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
