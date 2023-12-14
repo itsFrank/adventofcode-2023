@@ -1,0 +1,5 @@
+(test
+ (name test_day_8)
+ (libraries alcotest))
+
+(copy_files ./resources/*)
