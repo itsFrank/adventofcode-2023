@@ -1,5 +1,5 @@
 (test
  (name test_day_8)
- (libraries alcotest))
+ (libraries qbuffer alcotest))
 
 (copy_files ./resources/*)

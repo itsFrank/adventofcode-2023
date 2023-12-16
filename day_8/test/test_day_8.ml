@@ -1,4 +1,5 @@
 open Alcotest
+open Qbuffer
 module StringMap = Map.Make (String)
 
 let read_lines filename : string list =
@@ -84,31 +85,67 @@ let get_start_keys map =
   |> List.map (fun (k, _) -> k)
 ;;
 
+module LoopMap = Map.Make (String)
+
+(* reverse all the subsets between elements with value 0 *)
+let fix_loop_stats list =
+  let split_lists =
+    List.fold_left
+      (fun acc n ->
+        match n with
+        | 0 -> List.append [ []; [ 0 ] ] acc
+        | n ->
+          let new_head = List.hd acc |> List.append [ n ] in
+          List.append [ new_head ] (List.tl acc))
+      [ [] ]
+      list
+  in
+  List.rev split_lists |> List.flatten
+;;
+
 (* the idea is to get a circulat buffer of distances to next 'Z' for the loop of *)
 (* each start node and then increment the buffer ssimultaneously my the *)
 (* biggest number until they all say 0 *)
-let rec get_loop_stats stats key start_key steps_current steps_original map count =
-  if key == start_key
-  then (* TODO: clean up stats *)
-    stats
-  else (
-    let count =
-      match key.[2] with
-      | 'Z' -> 0
-      | _ -> count
-    in
+let get_loop_stats key steps map =
+  let rec helper key stats visited_map steps steps_original map count =
     let stats = List.append stats [ count ] in
-    let step, steps_next = pop_step steps_current steps_original in
+    let key_step_str = key ^ string_of_int (String.length steps) in
+    let visited_map = LoopMap.add key_step_str (List.length stats - 1) visited_map in
+    let step, steps = pop_step steps steps_original in
     let key = next_key key step map in
-    get_loop_stats stats key start_key steps_next steps_original map (count + 1))
+    let key_step_str = key ^ string_of_int (String.length steps) in
+    let entry = LoopMap.find_opt key_step_str visited_map in
+    match entry with
+    | Some idx -> fix_loop_stats stats, idx
+    | None ->
+      let count =
+        match key.[2] with
+        | 'Z' -> 0
+        | _ -> count + 1
+      in
+      helper key stats visited_map steps steps_original map count
+  in
+  helper key [] LoopMap.empty steps steps map 1
 ;;
 
-let rec do_part2 keys steps_current steps_original map count =
-  let step, steps_next = pop_step steps_current steps_original in
-  let next_keys = List.map (fun key -> next_key key step map) keys in
-  match List.fold_left (fun acc key -> acc && key.[2] == 'Z') true next_keys with
-  | true -> count + 1
-  | false -> do_part2 next_keys steps_next steps_original map count + 1
+let do_part2 qbufs =
+  let rec helper qbufs count =
+    let max_dist =
+      List.fold_left
+        (fun acc qbuf ->
+          match Qbuffer.front qbuf with
+          | f when f > acc -> f
+          | _ -> acc)
+        0
+        qbufs
+    in
+    match max_dist with
+    | 0 -> count
+    | _ ->
+      let qbufs = List.map (fun qbuf -> Qbuffer.shiftn max_dist qbuf) qbufs in
+      helper qbufs (count + max_dist)
+  in
+  helper qbufs 0
 ;;
 
 let test_parse () =
@@ -171,16 +208,68 @@ let test_part2_initial_nodes () =
     nodes
 ;;
 
+let test_part2_loop_stats () =
+  let steps, map = parse_input (read_lines "resources/sample3.txt") in
+  let start_keys = get_start_keys map in
+  let loop_stats, loop_idx = get_loop_stats (List.hd start_keys) steps map in
+  print_endline (List.hd start_keys);
+  check int "loop idx[0]" 1 loop_idx;
+  check (list int) "keys[0]" [ 2; 1; 0 ] loop_stats;
+  let loop_stats, loop_idx = get_loop_stats (List.hd (List.tl start_keys)) steps map in
+  print_endline (List.hd (List.tl start_keys));
+  check int "loop idx[1]" 1 loop_idx;
+  check (list int) "keys[1]" [ 3; 2; 1; 0; 2; 1; 0 ] loop_stats
+;;
+
+let test_part3_qbufs () =
+  let helper qbufs shift =
+    let qbufs = List.map (fun qbuf -> Qbuffer.shiftn shift qbuf) qbufs in
+    List.map (fun qbuf -> Qbuffer.front qbuf) qbufs, qbufs
+  in
+  let steps, map = parse_input (read_lines "resources/sample3.txt") in
+  let start_keys = get_start_keys map in
+  let qbufs =
+    List.map
+      (fun key ->
+        let stats, loop_idx = get_loop_stats key steps map in
+        Qbuffer.create (Array.of_list stats) loop_idx)
+      start_keys
+  in
+  let front, qbufs = helper qbufs 0 in
+  Alcotest.(check (list int)) "step 0" [ 2; 3 ] front;
+  let front, qbufs = helper qbufs 3 in
+  Alcotest.(check (list int)) "step 1" [ 1; 0 ] front;
+  let front, qbufs = helper qbufs 1 in
+  Alcotest.(check (list int)) "step 2" [ 0; 2 ] front;
+  let front, _ = helper qbufs 2 in
+  Alcotest.(check (list int)) "step 3" [ 0; 0 ] front
+;;
+
 let test_part2_sample3 () =
   let steps, map = parse_input (read_lines "resources/sample3.txt") in
-  let count = do_part2 (get_start_keys map) steps steps map 0 in
-  check int "count" 6 count
+  let start_keys = get_start_keys map in
+  let qbufs =
+    List.map
+      (fun key ->
+        let stats, loop_idx = get_loop_stats key steps map in
+        Qbuffer.create (Array.of_list stats) loop_idx)
+      start_keys
+  in
+  Alcotest.(check int) "trying" 6 (do_part2 qbufs)
 ;;
 
 let test_part2_main () =
   let steps, map = parse_input (read_lines "resources/main.txt") in
-  let count = do_part2 (get_start_keys map) steps steps map 0 in
-  check int "count" 1 count
+  let start_keys = get_start_keys map in
+  let qbufs =
+    List.map
+      (fun key ->
+        let stats, loop_idx = get_loop_stats key steps map in
+        Printf.printf "%d, %d\n" loop_idx (List.length stats);
+        Qbuffer.create (Array.of_list stats) loop_idx)
+      start_keys
+  in
+  Alcotest.(check int) "trying" 0 (List.length qbufs)
 ;;
 
 let () =
@@ -193,6 +282,8 @@ let () =
         ; test_case "part1 main" `Quick test_part1_main
         ; test_case "part2 start nodes" `Quick test_part2_initial_nodes
         ; test_case "part2 sample3" `Quick test_part2_sample3
+        ; test_case "part2 loop stats" `Quick test_part2_loop_stats
+        ; test_case "part2 loop stats" `Quick test_part3_qbufs
         ; test_case "part2 sample3" `Quick test_part2_main
         ] )
     ]
