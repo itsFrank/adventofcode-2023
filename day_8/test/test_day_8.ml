@@ -278,7 +278,7 @@ let test_part2_main () =
         Qbuffer.create (Array.of_list stats) loop_idx)
       start_keys
   in
-  Alcotest.(check int) "trying" 0 (do_part2 qbufs)
+  Alcotest.(check int) "trying" 16187743689077 (do_part2 qbufs)
 ;;
 
 let test_lcm () =
