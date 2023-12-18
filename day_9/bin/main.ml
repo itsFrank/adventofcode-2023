@@ -8,6 +8,6 @@ let () =
   
   let p2_input = AocUtils.resource_file "main.txt" |> Day9.parse_input in
   let p2_result = Day9.do_part2 p2_input in
-  print_endline (Printf.sprintf "\nPart 1: %d" p2_result)
+  print_endline (Printf.sprintf "\nPart 2: %d" p2_result)
 
 ;;
