@@ -8,6 +8,8 @@ module Qbuffer = struct
 
   let create buf loop_idx = { buf; loop_idx; idx = 0 }
   let front qbuf = qbuf.buf.(qbuf.idx)
+  let loop_len qbuf = Array.length qbuf.buf - qbuf.loop_idx
+  let full_len qbuf = Array.length qbuf.buf
 
   let shift qbuf =
     match qbuf.idx + 1 with

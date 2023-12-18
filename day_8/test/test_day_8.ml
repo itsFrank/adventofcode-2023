@@ -128,24 +128,33 @@ let get_loop_stats key steps map =
   helper key [] LoopMap.empty steps steps map 1
 ;;
 
+let rec gcd a = function
+  | 0 -> a
+  | b -> gcd b (a mod b)
+;;
+
+let lcm a b = a * b / gcd a b
+
 let do_part2 qbufs =
-  let rec helper qbufs count =
-    let max_dist =
-      List.fold_left
-        (fun acc qbuf ->
-          match Qbuffer.front qbuf with
-          | f when f > acc -> f
-          | _ -> acc)
-        0
-        qbufs
-    in
-    match max_dist with
-    | 0 -> count
-    | _ ->
-      let qbufs = List.map (fun qbuf -> Qbuffer.shiftn max_dist qbuf) qbufs in
-      helper qbufs (count + max_dist)
-  in
-  helper qbufs 0
+  (* worked, but way too slow *)
+  (* let rec helper qbufs count = *)
+  (*   let max_dist = *)
+  (*     List.fold_left *)
+  (*       (fun acc qbuf -> *)
+  (*         match Qbuffer.front qbuf with *)
+  (*         | f when f > acc -> f *)
+  (*         | _ -> acc) *)
+  (*       0 *)
+  (*       qbufs *)
+  (*   in *)
+  (*   match max_dist with *)
+  (*   | 0 -> count *)
+  (*   | _ -> *)
+  (*     let qbufs = List.map (fun qbuf -> Qbuffer.shiftn max_dist qbuf) qbufs in *)
+  (*     helper qbufs (count + max_dist) *)
+  (* in *)
+  (* helper qbufs 0 *)
+  List.fold_left (fun acc qbuf -> lcm acc (Qbuffer.loop_len qbuf)) 1 qbufs
 ;;
 
 let test_parse () =
@@ -269,7 +278,17 @@ let test_part2_main () =
         Qbuffer.create (Array.of_list stats) loop_idx)
       start_keys
   in
-  Alcotest.(check int) "trying" 0 (List.length qbufs)
+  Alcotest.(check int) "trying" 0 (do_part2 qbufs)
+;;
+
+let test_lcm () =
+  let input = [ 2, 3; 3, 3; 6, 5; 8, 3 ]
+  and exp = [ 6; 3; 30; 24 ] in
+  List.iteri
+    (fun i ((a, b), e) ->
+      let check_name = Printf.sprintf "LCM [%d]" i in
+      Alcotest.(check int) check_name e (lcm a b))
+    (List.combine input exp)
 ;;
 
 let () =
@@ -284,7 +303,8 @@ let () =
         ; test_case "part2 sample3" `Quick test_part2_sample3
         ; test_case "part2 loop stats" `Quick test_part2_loop_stats
         ; test_case "part2 loop stats" `Quick test_part3_qbufs
-        ; test_case "part2 sample3" `Quick test_part2_main
+        ; test_case "lcm test" `Quick test_lcm
+        ; test_case "part2 main" `Quick test_part2_main
         ] )
     ]
 ;;
