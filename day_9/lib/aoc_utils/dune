@@ -1,0 +1,7 @@
+(library
+ (name aoc_utils)
+ (inline_tests)
+ (preprocess
+  (pps ppx_inline_alcotest)))
+
+(include_subdirs no)

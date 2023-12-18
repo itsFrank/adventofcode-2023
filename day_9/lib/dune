@@ -1,0 +1,3 @@
+(copy_files ../resources/*)
+
+(include_subdirs unqualified)

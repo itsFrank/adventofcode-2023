@@ -1,0 +1,7 @@
+(executable
+ (public_name day_9)
+ (name main)
+ (libraries  aoc_utils day_9)
+ (preprocess (pps ppx_inline_alcotest)))
+ 
+(copy_files ../resources/*)
